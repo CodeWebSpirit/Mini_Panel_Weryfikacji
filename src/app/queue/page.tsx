@@ -81,18 +81,27 @@ const PRIORITY_DOT: Record<string, string> = {
 export default function QueuePage() {
   const [items, setItems] = useState<QueueItem[]>(SEED_ITEMS)
   const [filter, setFilter] = useState<MessageCategory | 'all'>('all')
-
+const [editingId, setEditingId] = useState<string | null>(null)
   // TODO: Zaimplementuj logikę akcji
-  function handleAction(_id: string, _action: MessageStatus) {
+  function handleAction(id: string, action: MessageStatus) {
     // Wskazówka: użyj setItems z map() — nie mutuj tablicy bezpośrednio
+    setItems((prevItems) =>
+      prevItems.map((item) => (item.id === id ? { ...item, status: action } : item))
+    )
+    if (editingId === id) {
+      setEditingId(null)
+    }
   }
 
   // TODO: Zaimplementuj edycję draft_reply
-  function handleEditReply(_id: string, _newReply: string) {
+  function handleEditReply(id: string, newReply: string) {
     // Wskazówka: j.w.
+    setItems((prevItems) =>
+      prevItems.map((item) => (item.id === id ? { ...item, draft_reply: newReply } : item))
+    )
   }
 
-  const visible = filter === 'all' ? items : items.filter((i) => i.category === filter)
+const visible = filter === 'all' ? items : items.filter((i) => i.category === filter)
   const pending = items.filter((i) => i.status === 'pending').length
 
   return (
@@ -129,69 +138,95 @@ export default function QueuePage() {
           <p className="text-zinc-500 text-sm py-12 text-center">Brak elementów w tej kategorii.</p>
         )}
 
-        {visible.map((item) => (
-          <article
-            key={item.id}
-            className={`rounded-xl border p-5 transition-opacity ${
-              item.status !== 'pending' ? 'opacity-50' : ''
-            }`}
-            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
-          >
-            {/* Nagłówek karty */}
-            <div className="flex items-start justify-between gap-4 mb-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_STYLES[item.category]}`}>
-                  {item.category}
+        {visible.map((item) => {
+          const isEditing = editingId === item.id
+
+          return (
+            <article
+              key={item.id}
+              className={`rounded-xl border p-5 transition-opacity ${
+                item.status !== 'pending' ? 'opacity-50' : ''
+              }`}
+              style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+            >
+              {/* Nagłówek karty */}
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_STYLES[item.category]}`}>
+                    {item.category}
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-zinc-500">
+                    <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[item.priority]}`} />
+                    {item.priority}
+                  </span>
+                  <span className="text-xs text-zinc-600">{item.company}</span>
+                </div>
+                <span className="text-xs text-zinc-600 shrink-0">
+                  {new Date(item.created_at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-zinc-500">
-                  <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[item.priority]}`} />
-                  {item.priority}
-                </span>
-                <span className="text-xs text-zinc-600">{item.company}</span>
               </div>
-              <span className="text-xs text-zinc-600 shrink-0">
-                {new Date(item.created_at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
 
-            {/* Wiadomość klienta */}
-            <div className="mb-3">
-              <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Wiadomość</p>
-              <p className="text-sm text-zinc-200">{item.message}</p>
-            </div>
-
-            {/* Draft AI */}
-            <div className="mb-4 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800">
-              <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
-                Draft AI · {Math.round(item.confidence * 100)}% pewności
-              </p>
-              {/* TODO: Zamień na <textarea> z edycją */}
-              <p className="text-sm text-zinc-300">{item.draft_reply}</p>
-            </div>
-
-            {/* Akcje */}
-            {item.status === 'pending' && (
-              <div className="flex gap-2">
-                {/* TODO: Podłącz do handleAction */}
-                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-900/40 text-emerald-400 border border-emerald-700/40 hover:bg-emerald-800/50 transition-colors">
-                  ✅ Zatwierdź
-                </button>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition-colors">
-                  ✏️ Edytuj
-                </button>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/40 text-red-400 border border-red-700/40 hover:bg-red-800/50 transition-colors">
-                  ❌ Odrzuć
-                </button>
+              {/* Wiadomość klienta */}
+              <div className="mb-3">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Wiadomość</p>
+                <p className="text-sm text-zinc-200">{item.message}</p>
               </div>
-            )}
 
-            {item.status !== 'pending' && (
-              <p className="text-xs text-zinc-600 italic">
-                {item.status === 'approved' ? '✅ Zatwierdzone' : '❌ Odrzucone'}
-              </p>
-            )}
-          </article>
-        ))}
+              {/* Draft AI */}
+              <div className="mb-4 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">
+                  Draft AI · {Math.round(item.confidence * 100)}% pewności
+                </p>
+                
+                {isEditing ? (
+                  <textarea
+                    value={item.draft_reply}
+                    onChange={(e) => handleEditReply(item.id, e.target.value)}
+                    className="w-full text-sm text-zinc-200 bg-zinc-950 border border-zinc-700 rounded p-2 focus:outline-none focus:border-zinc-500 min-h-[80px] resize-y"
+                  />
+                ) : (
+                  <p className="text-sm text-zinc-300 whitespace-pre-wrap">{item.draft_reply}</p>
+                )}
+              </div>
+
+              {/* Akcje */}
+              {item.status === 'pending' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleAction(item.id, 'approved')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-900/40 text-emerald-400 border border-emerald-700/40 hover:bg-emerald-800/50 transition-colors"
+                  >
+                    ✅ Zatwierdź
+                  </button>
+                  
+                  <button
+                    onClick={() => setEditingId(isEditing ? null : item.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      isEditing
+                        ? 'bg-amber-900/40 text-amber-400 border-amber-700/40 hover:bg-amber-800/50'
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+                    }`}
+                  >
+                    {isEditing ? '💾 Zapisz podgląd' : '✏️ Edytuj'}
+                  </button>
+                  
+                  <button
+                    onClick={() => handleAction(item.id, 'rejected')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/40 text-red-400 border border-red-700/40 hover:bg-red-800/50 transition-colors"
+                  >
+                    ❌ Odrzuć
+                  </button>
+                </div>
+              )}
+
+              {item.status !== 'pending' && (
+                <p className="text-xs text-zinc-600 italic">
+                  {item.status === 'approved' ? '✅ Zatwierdzone' : '❌ Odrzucone'}
+                </p>
+              )}
+            </article>
+          )
+        })}
       </div>
     </main>
   )
